@@ -534,8 +534,8 @@ body {
   <div class="sheet">
     <div class="sheet-drag"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Log workout</div>
-      <div class="sheet-sub">Add to your 2026 streak</div>
+      <div class="sheet-title" id="sheet-title">Log workout</div>
+      <div class="sheet-sub" id="sheet-sub">Add to your 2026 streak</div>
     </div>
     <div class="sheet-body">
       <div class="field-group">
@@ -547,10 +547,18 @@ body {
         <input type="date" class="sh-input" id="new-date">
       </div>
       <div class="field-group">
+        <span class="field-label">Duration</span>
+        <input type="text" class="sh-input" id="new-time" placeholder="hh:mm:ss e.g. 00:45:00">
+      </div>
+      <div class="field-group">
+        <span class="field-label">Calories burned</span>
+        <input type="number" class="sh-input" id="new-calories" placeholder="e.g. 320">
+      </div>
+      <div class="field-group">
         <span class="field-label">Notes</span>
         <input type="text" class="sh-input" id="new-notes" placeholder="Optional note…">
       </div>
-      <button class="save-btn" onclick="saveActivity()">Add workout</button>
+      <button class="save-btn" id="save-btn" onclick="saveActivity()">Add workout</button>
     </div>
   </div>
 </div>
@@ -584,7 +592,17 @@ const BASE = [{"type":"Walking","date":"2026-06-04","title":"Bloubergstrand Walk
 
 const SK = "move26_rv1";
 let extra = [];
-try { const s = localStorage.getItem(SK); if(s) extra = JSON.parse(s); } catch(e){}
+let storageReady = false;
+
+async function loadStorage() {
+  try {
+    const result = await window.storage.get(SK);
+    if (result && result.value) extra = JSON.parse(result.value);
+  } catch(e) { extra = []; }
+  storageReady = true;
+  activities = buildActivities();
+  render();
+}
 
 function buildActivities() {
   const tagged = extra.map((a, i) => ({ ...a, _extra: true, _extraIdx: i }));
@@ -687,18 +705,17 @@ function render() {
     const cat = CATS[a.type] || { emoji: "🏋️" };
     const isExtra = a._extra === true;
     const idx = a._extraIdx;
-    return `<div class="act-wrap${isExtra ? " extra-only" : ""}">
-      ${isExtra ? `<div class="act-delete-bg" onclick="removeExtra(${idx})">🗑️</div>` : ''}
-      <div class="act${isExtra ? ' swipeable' : ''}" ${isExtra ? `data-idx="${idx}"` : ''}>
+    return `<div class="act-wrap">
+      <div class="act">
         <div class="act-icon">${cat.emoji}</div>
         <div class="act-body">
           <div class="act-title">${a.title}</div>
-          <div class="act-date">${fmtDate(a.date)}${isExtra ? ' · <span style="color:#ef4444;font-size:10px;font-weight:700">ADDED</span>' : ''}</div>
+          <div class="act-date">${fmtDate(a.date)}${isExtra ? ' · <span style="color:var(--blue2);font-size:10px;font-weight:700">ADDED</span>' : ''}</div>
         </div>
         <div class="act-right">
           <div class="act-time">${a.time && a.time !== "--" ? a.time : ""}</div>
           <div class="act-cal">${a.calories && a.calories !== "--" ? a.calories + " kcal" : ""}</div>
-          ${isExtra ? `<button onclick="removeExtra(${idx})" style="background:none;border:none;color:rgba(239,68,68,0.6);font-size:13px;cursor:pointer;font-family:inherit;padding:0;margin-top:2px;font-weight:600;">Remove</button>` : ''}
+          ${isExtra ? `<button onclick="editExtra(${idx})" style="background:none;border:none;color:var(--blue2);font-size:11px;cursor:pointer;font-family:inherit;padding:0;margin-top:3px;font-weight:700;letter-spacing:0.02em;">✏️ Edit</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -710,10 +727,33 @@ function render() {
 
 function toggleAll() { showAll = !showAll; render(); }
 
+let editingIdx = null;
+
 function openModal(type) {
+  editingIdx = null;
   selectedType = type || "Treadmill Running";
   document.getElementById("new-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("new-time").value = "";
+  document.getElementById("new-calories").value = "";
   document.getElementById("new-notes").value = "";
+  document.getElementById("sheet-title").textContent = "Log workout";
+  document.getElementById("sheet-sub").textContent = "Add to your 2026 streak";
+  document.getElementById("save-btn").textContent = "Add workout";
+  buildTypeGrid();
+  document.getElementById("overlay").classList.add("open");
+}
+
+function editExtra(idx) {
+  editingIdx = idx;
+  const a = extra[idx];
+  selectedType = a.type;
+  document.getElementById("new-date").value = a.date;
+  document.getElementById("new-time").value = a.time !== "--" ? a.time : "";
+  document.getElementById("new-calories").value = a.calories !== "--" ? a.calories : "";
+  document.getElementById("new-notes").value = a.title !== a.type ? a.title : "";
+  document.getElementById("sheet-title").textContent = "Edit workout";
+  document.getElementById("sheet-sub").textContent = "Update your entry";
+  document.getElementById("save-btn").textContent = "Save changes";
   buildTypeGrid();
   document.getElementById("overlay").classList.add("open");
 }
@@ -731,12 +771,7 @@ function buildTypeGrid() {
 function selectType(t) { selectedType = t; buildTypeGrid(); }
 
 function quickAdd(type) {
-  const date = new Date().toISOString().split("T")[0];
-  extra.push({ type, date, title: type, distance: "--", calories: "--", time: "--" });
-  try { localStorage.setItem(SK, JSON.stringify(extra)); } catch(e) {}
-  activities = buildActivities();
-  render();
-  showToast(CATS[type].emoji + "  " + type + " logged");
+  openModal(type);
 }
 
 function quickRemove(type) {
@@ -744,19 +779,19 @@ function quickRemove(type) {
   for (let i = extra.length - 1; i >= 0; i--) {
     if (extra[i].type === type) {
       extra.splice(i, 1);
-      try { localStorage.setItem(SK, JSON.stringify(extra)); } catch(e) {}
+      window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
       activities = buildActivities();
       render();
       showToast("Removed 1 " + type + " entry");
       return;
     }
   }
-  showToast("Nothing to remove — Garmin data can't be edited");
+  showToast("No manually added entries for this type");
 }
 
 function removeExtra(idx) {
   extra.splice(idx, 1);
-  try { localStorage.setItem(SK, JSON.stringify(extra)); } catch(e) {}
+  window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
   activities = buildActivities();
   render();
   showToast("Entry removed");
@@ -765,13 +800,21 @@ function removeExtra(idx) {
 function saveActivity() {
   const date = document.getElementById("new-date").value;
   const notes = document.getElementById("new-notes").value;
+  const time = document.getElementById("new-time").value.trim() || "--";
+  const calories = document.getElementById("new-calories").value.trim() || "--";
   if (!date) return;
-  extra.push({ type: selectedType, date, title: notes || selectedType, distance: "--", calories: "--", time: "--" });
-  try { localStorage.setItem(SK, JSON.stringify(extra)); } catch(e) {}
+  const entry = { type: selectedType, date, title: notes || selectedType, distance: "--", calories, time };
+  if (editingIdx !== null) {
+    extra[editingIdx] = entry;
+    showToast("✅ Entry updated!");
+  } else {
+    extra.push(entry);
+    showToast(CATS[selectedType].emoji + "  Added!");
+  }
+  window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
   activities = buildActivities();
   closeModal();
   render();
-  showToast(CATS[selectedType].emoji + "  Added!");
 }
 
 function showToast(msg) {
@@ -860,7 +903,15 @@ function renderStats() {
   }).join('');
 }
 
-render();
+// init
+if (typeof window.storage !== 'undefined') {
+  loadStorage();
+} else {
+  // fallback to localStorage if not in artifact environment
+  try { const s = localStorage.getItem(SK); if(s) extra = JSON.parse(s); } catch(e){}
+  activities = buildActivities();
+  render();
+}
 </script>
 </body>
 </html>
