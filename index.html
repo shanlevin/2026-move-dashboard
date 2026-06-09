@@ -626,16 +626,18 @@ const BASE = [{"type":"Treadmill Running","date":"2026-06-09","title":"Treadmill
 
 const SK = "move26_rv1";
 let extra = [];
-let storageReady = false;
 
-async function loadStorage() {
+function loadStorage() {
   try {
-    const result = await window.storage.get(SK);
-    if (result && result.value) extra = JSON.parse(result.value);
+    const s = localStorage.getItem(SK);
+    if (s) extra = JSON.parse(s);
   } catch(e) { extra = []; }
-  storageReady = true;
   activities = buildActivities();
   render();
+}
+
+function saveStorage() {
+  try { localStorage.setItem(SK, JSON.stringify(extra)); } catch(e) {}
 }
 
 function buildActivities() {
@@ -815,7 +817,7 @@ function quickRemove(type) {
   for (let i = extra.length - 1; i >= 0; i--) {
     if (extra[i].type === type) {
       extra.splice(i, 1);
-      window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
+      saveStorage();
       activities = buildActivities();
       render();
       showToast("Removed 1 " + type + " entry");
@@ -827,7 +829,7 @@ function quickRemove(type) {
 
 function removeExtra(idx) {
   extra.splice(idx, 1);
-  window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
+  saveStorage();
   activities = buildActivities();
   render();
   showToast("Entry removed");
@@ -847,7 +849,7 @@ function saveActivity() {
     extra.push(entry);
     showToast(CATS[selectedType].emoji + "  Added!");
   }
-  window.storage.set(SK, JSON.stringify(extra)).catch(()=>{});
+  saveStorage();
   activities = buildActivities();
   closeModal();
   render();
@@ -939,15 +941,7 @@ function renderStats() {
   }).join('');
 }
 
-// init
-if (typeof window.storage !== 'undefined') {
-  loadStorage();
-} else {
-  // fallback to localStorage if not in artifact environment
-  try { const s = localStorage.getItem(SK); if(s) extra = JSON.parse(s); } catch(e){}
-  activities = buildActivities();
-  render();
-}
+loadStorage();
 </script>
 </body>
 </html>
