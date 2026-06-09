@@ -380,18 +380,20 @@ body {
   border-bottom: none;
   width: 100%; max-width: 480px;
   margin: 0 auto;
+  max-height: 92vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0 0 max(32px, env(safe-area-inset-bottom));
   animation: sheetUp 0.36s cubic-bezier(0.16,1,0.3,1);
-  overflow: hidden;
 }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet-drag { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 12px auto 0; }
 .sheet-head { padding: 20px 22px 0; }
 .sheet-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
 .sheet-sub { font-size: 13px; color: var(--text2); margin-top: 4px; font-weight: 500; }
-.sheet-body { padding: 20px 22px 0; }
+.sheet-body { padding: 14px 22px 0; }
 .field-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text2); text-transform: uppercase; margin-bottom: 10px; display: block; }
-.field-group { margin-bottom: 20px; }
+.field-group { margin-bottom: 14px; }
 .type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .type-opt {
   background: var(--surface2); border: 1.5px solid transparent;
@@ -532,10 +534,15 @@ body {
 <!-- MODAL -->
 <div class="overlay" id="overlay" onclick="maybeClose(event)">
   <div class="sheet">
-    <div class="sheet-drag"></div>
-    <div class="sheet-head">
-      <div class="sheet-title" id="sheet-title">Log workout</div>
-      <div class="sheet-sub" id="sheet-sub">Add to your 2026 streak</div>
+    <div style="position:sticky;top:0;background:var(--surface);z-index:2;border-radius:28px 28px 0 0;padding:12px 22px 14px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <button onclick="closeModal()" style="background:var(--surface2);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+        <div style="text-align:center;flex:1;">
+          <div class="sheet-title" id="sheet-title" style="font-size:17px;">Log workout</div>
+        </div>
+        <div style="width:32px;"></div>
+      </div>
+      <div class="sheet-sub" id="sheet-sub" style="text-align:center;margin-top:4px;">Add to your 2026 streak</div>
     </div>
     <div class="sheet-body">
       <div class="field-group">
